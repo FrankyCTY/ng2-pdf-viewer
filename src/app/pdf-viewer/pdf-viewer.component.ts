@@ -112,7 +112,7 @@ export class PdfViewerComponent
   private isInitialized = false;
   private loadingTask?: PDFDocumentLoadingTask | null;
   private destroy$ = new Subject<void>();
-  private static readonly IOS_MAX_CANVAS_PIXELS = 26777216;
+  private static readonly IOS_MAX_CANVAS_PIXELS = 16777216;
 
   @Output('after-load-complete') afterLoadComplete =
     new EventEmitter<PDFDocumentProxy>();
@@ -485,14 +485,16 @@ export class PdfViewerComponent
       l10n: new PDFJSViewer.GenericL10n('en'),
       imageResourcesPath: this._imageResourcesPath,
       annotationEditorMode: PDFJS.AnnotationEditorType.DISABLE,
+      maxCanvasPixels: 5242880,
+      // maxCanvasPixels: 10000000
     };
 
     // const maxCanvasPixels = this.getEffectiveMaxCanvasPixels();
-    const maxCanvasPixels = PdfViewerComponent.IOS_MAX_CANVAS_PIXELS;
-    if (typeof maxCanvasPixels !== 'undefined') {
-      options.maxCanvasPixels = maxCanvasPixels;
-      console.log("-------------------> pdfOptions.maxCanvasPixels: ", options.maxCanvasPixels);
-    }
+    // const maxCanvasPixels = PdfViewerComponent.IOS_MAX_CANVAS_PIXELS;
+    // if (typeof maxCanvasPixels !== 'undefined') {
+    //   options.maxCanvasPixels = maxCanvasPixels;
+    //   console.log("-------------------> pdfOptions.maxCanvasPixels: ", options.maxCanvasPixels);
+    // }
 
     return options;
   }
