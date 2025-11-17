@@ -17,7 +17,7 @@ import { PdfViewerComponent } from './pdf-viewer/pdf-viewer.component';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-  pdfSrc: string | Uint8Array | PDFSource = './assets/pdf-test.pdf';
+  pdfSrc: string | Uint8Array | PDFSource = './assets/0001.pdf';
 
   error: any;
   page = 1;
@@ -50,7 +50,7 @@ export class AppComponent implements OnInit {
   // Load pdf
   loadPdf() {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/assets/pdf-test.pdf', true);
+    xhr.open('GET', '/assets/0001.pdf', true);
     xhr.responseType = 'blob';
 
     xhr.onload = (e: any) => {
