@@ -68,8 +68,7 @@ export enum RenderTextMode {
   styleUrls: ['./pdf-viewer.component.scss'],
 })
 export class PdfViewerComponent
-  implements OnChanges, OnInit, OnDestroy, AfterViewChecked
-{
+  implements OnChanges, OnInit, OnDestroy, AfterViewChecked {
   static CSS_UNITS = 96.0 / 72.0;
   static BORDER_WIDTH = 9;
 
@@ -107,11 +106,13 @@ export class PdfViewerComponent
   private _showBorders = false;
   private lastLoaded!: string | Uint8Array | PDFSource | null;
   private _latestScrolledPage!: number;
+  private _maxCanvasPixels: number | undefined;
 
   private pageScrollTimeout: number | null = null;
   private isInitialized = false;
   private loadingTask?: PDFDocumentLoadingTask | null;
   private destroy$ = new Subject<void>();
+  private static readonly IOS_MAX_CANVAS_PIXELS = 16777216;
 
   @Output('after-load-complete') afterLoadComplete =
     new EventEmitter<PDFDocumentProxy>();
@@ -220,6 +221,24 @@ export class PdfViewerComponent
   @Input('show-borders')
   set showBorders(value: boolean) {
     this._showBorders = Boolean(value);
+  }
+
+  @Input('max-canvas-pixels')
+  set maxCanvasPixels(value: number | string | undefined) {
+    if (value === null || typeof value === 'undefined') {
+      this._maxCanvasPixels = undefined;
+      return;
+    }
+
+    const numericValue =
+      typeof value === 'string' ? Number(value) : Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      console.warn('Invalid max-canvas-pixels value, ignoring.');
+      return;
+    }
+
+    this._maxCanvasPixels = numericValue;
   }
 
   static getLinkTarget(type: string) {
@@ -454,7 +473,7 @@ export class PdfViewerComponent
   }
 
   private getPDFOptions(): PDFViewerOptions {
-    return {
+    const options: PDFViewerOptions = {
       eventBus: this.eventBus,
       container: this.element.nativeElement.querySelector('div')!,
       removePageBorders: !this._showBorders,
@@ -466,7 +485,18 @@ export class PdfViewerComponent
       l10n: new PDFJSViewer.GenericL10n('en'),
       imageResourcesPath: this._imageResourcesPath,
       annotationEditorMode: PDFJS.AnnotationEditorType.DISABLE,
+      maxCanvasPixels: 5242880,
+      // maxCanvasPixels: 10000000
     };
+
+    // const maxCanvasPixels = this.getEffectiveMaxCanvasPixels();
+    // const maxCanvasPixels = PdfViewerComponent.IOS_MAX_CANVAS_PIXELS;
+    // if (typeof maxCanvasPixels !== 'undefined') {
+    //   options.maxCanvasPixels = maxCanvasPixels;
+    //   console.log("-------------------> pdfOptions.maxCanvasPixels: ", options.maxCanvasPixels);
+    // }
+
+    return options;
   }
 
   private setupViewer() {
@@ -488,6 +518,59 @@ export class PdfViewerComponent
     this.pdfLinkService.setViewer(this.pdfViewer);
 
     this.pdfViewer._currentPageNumber = this._page;
+  }
+
+  private getEffectiveMaxCanvasPixels() {
+    const configuredValue = this._maxCanvasPixels;
+
+    if (!this.isIOSDevice()) {
+      return configuredValue;
+    }
+
+    if (configuredValue === 0) {
+      return 0;
+    }
+
+    const limit = PdfViewerComponent.IOS_MAX_CANVAS_PIXELS;
+    const pixelRatio = this.getDevicePixelRatio();
+    const adjustedSafariLimit = Math.floor(
+      limit / Math.max(1, pixelRatio * pixelRatio)
+    );
+    const safeLimit = Math.max(1, adjustedSafariLimit);
+
+    if (
+      typeof configuredValue === 'undefined' ||
+      configuredValue === -1 ||
+      configuredValue > safeLimit
+    ) {
+      return safeLimit;
+    }
+
+    return configuredValue;
+  }
+
+  private getDevicePixelRatio() {
+    if (isSSR()) {
+      return 1;
+    }
+
+    return window.devicePixelRatio || 1;
+  }
+
+  private isIOSDevice() {
+    if (isSSR()) {
+      return false;
+    }
+
+    const navigatorRef = window.navigator;
+    const userAgent = navigatorRef?.userAgent || '';
+    const platform = (navigatorRef as any)?.platform || '';
+    const maxTouchPoints = (navigatorRef as any)?.maxTouchPoints || 0;
+
+    const iOSDevice = /iPad|iPhone|iPod/.test(userAgent);
+    const iPadOS13Plus = platform === 'MacIntel' && maxTouchPoints > 1;
+
+    return iOSDevice || iPadOS13Plus;
   }
 
   private getValidPageNumber(page: number): number {
